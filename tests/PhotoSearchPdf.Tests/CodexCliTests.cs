@@ -34,6 +34,29 @@ public sealed class CodexCliTests
     }
 
     [Fact]
+    public void FindInvocation_AcceptsWingetPortableLink()
+    {
+        var links = "C:\\Users\\me\\AppData\\Local\\Microsoft\\WinGet\\Links";
+        var executable = Path.Combine(links, "codex.exe");
+
+        var result = CodexCliLocator.FindInvocation([links], candidate => candidate == executable);
+
+        Assert.NotNull(result);
+        Assert.Equal(executable, result.FileName);
+    }
+
+    [Fact]
+    public void FindInvocation_SkipsProtectedDesktopPackageBinary()
+    {
+        var resources = "C:\\Program Files\\WindowsApps\\OpenAI.Codex_1.0.0_x64__publisher\\app\\resources";
+        var executable = Path.Combine(resources, "codex.exe");
+
+        var result = CodexCliLocator.FindInvocation([resources], candidate => candidate == executable);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public void BuildQuestionArguments_IsEphemeralReadOnlyAndContainsNoUserText()
     {
         var args = CodexQuestionService.BuildQuestionArguments();

@@ -130,7 +130,7 @@
                             <TextBlock x:Name="CodexStatusTextBlock" Text="Проверяю Codex CLI…" Foreground="#475467" Margin="0,3,0,0"/>
                         </StackPanel>
                         <Button x:Name="RefreshCodexButton" Grid.Column="1" Content="Проверить" Click="RefreshCodex_Click"/>
-                        <Button x:Name="LoginCodexButton" Grid.Column="2" Content="Войти через ChatGPT" Click="LoginCodex_Click"
+                        <Button x:Name="LoginCodexButton" Grid.Column="2" Content="Подключить OpenAI" Click="LoginCodex_Click"
                                 Background="#2563EB" Foreground="White" BorderBrush="#2563EB"/>
                     </Grid>
                 </Border>

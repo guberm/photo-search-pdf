@@ -199,15 +199,19 @@ public partial class MainWindow : Window
             var service = CreateCodexService();
             if (service is null)
             {
-                CodexStatusTextBlock.Text = "Codex CLI не найден — установите Codex и повторите проверку";
-                LoginCodexButton.IsEnabled = false;
+                var wingetAvailable = CodexCliInstaller.FindWinget() is not null;
+                CodexStatusTextBlock.Text = wingetAvailable
+                    ? "Codex не установлен — приложение может установить его автоматически"
+                    : "Codex не установлен; Windows Package Manager не найден";
+                LoginCodexButton.Content = wingetAvailable ? "Установить и подключить" : "Открыть инструкцию";
+                LoginCodexButton.IsEnabled = true;
                 return;
             }
 
             var status = await service.GetLoginStatusAsync();
             CodexStatusTextBlock.Text = status.Message;
-            LoginCodexButton.Content = status.SignedInWithChatGpt ? "Переподключить" : "Войти через ChatGPT";
-            LoginCodexButton.IsEnabled = true;
+            LoginCodexButton.Content = status.SignedInWithChatGpt ? "Подключено" : "Войти через ChatGPT";
+            LoginCodexButton.IsEnabled = !status.SignedInWithChatGpt;
         }
         catch (Exception error)
         {
@@ -221,32 +225,32 @@ public partial class MainWindow : Window
 
     private async void LoginCodex_Click(object sender, RoutedEventArgs e)
     {
-        var service = CreateCodexService();
-        if (service is null)
-        {
-            MessageBox.Show(this,
-                "Codex CLI не найден. Установите Codex, затем нажмите «Проверить».",
-                "Codex CLI не найден",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        LoginCodexButton.IsEnabled = false;
-        CodexStatusTextBlock.Text = "Завершите вход в открывшемся браузере…";
+        _questionCancellation = new CancellationTokenSource();
+        SetQuestionRunning(true);
         try
         {
-            await service.LoginWithChatGptAsync();
-            await RefreshCodexStatusAsync();
+            var service = await EnsureCodexReadyAsync(_questionCancellation.Token);
+            if (service is not null)
+            {
+                CodexStatusTextBlock.Text = "Подключено через подписку ChatGPT";
+                LoginCodexButton.Content = "Подключено";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            CodexStatusTextBlock.Text = "Подключение отменено";
         }
         catch (Exception error)
         {
-            CodexStatusTextBlock.Text = "Вход не завершён";
-            MessageBox.Show(this, error.Message, "Вход через ChatGPT", MessageBoxButton.OK, MessageBoxImage.Warning);
+            CodexStatusTextBlock.Text = "Не удалось подключить OpenAI";
+            MessageBox.Show(this, error.Message, "Подключение OpenAI", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
-            LoginCodexButton.IsEnabled = true;
+            _questionCancellation?.Dispose();
+            _questionCancellation = null;
+            SetQuestionRunning(false);
+            await RefreshCodexStatusAsync();
         }
     }
 
@@ -260,24 +264,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        var service = CreateCodexService();
-        if (service is null)
-        {
-            MessageBox.Show(this, "Codex CLI не найден. Установите Codex и войдите через ChatGPT.",
-                "Требуется Codex CLI", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
         _questionCancellation = new CancellationTokenSource();
         SetQuestionRunning(true);
         AnswerTextBox.Clear();
-        QuestionStatusTextBlock.Text = "Проверяю подписку ChatGPT…";
+        QuestionStatusTextBlock.Text = "Подготавливаю подключение OpenAI…";
         try
         {
-            var login = await service.GetLoginStatusAsync(_questionCancellation.Token);
-            if (!login.SignedInWithChatGpt)
+            var service = await EnsureCodexReadyAsync(_questionCancellation.Token);
+            if (service is null)
             {
-                throw new InvalidOperationException("Сначала нажмите «Войти через ChatGPT». Вход через API key здесь намеренно не используется.");
+                QuestionStatusTextBlock.Text = "Подключение OpenAI не завершено";
+                return;
             }
 
             QuestionStatusTextBlock.Text = "Подбираю страницы документа…";
@@ -318,13 +315,69 @@ public partial class MainWindow : Window
         return invocation is null ? null : new CodexQuestionService(invocation);
     }
 
+    private async Task<CodexQuestionService?> EnsureCodexReadyAsync(CancellationToken cancellationToken)
+    {
+        var service = CreateCodexService();
+        if (service is null)
+        {
+            var winget = CodexCliInstaller.FindWinget();
+            if (winget is null)
+            {
+                var openDocs = MessageBox.Show(this,
+                    "Windows Package Manager не найден, поэтому автоматическая установка недоступна. Открыть официальную инструкцию OpenAI?",
+                    "Установка Codex",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+                if (openDocs == MessageBoxResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo(CodexCliInstaller.HelpUrl) { UseShellExecute = true });
+                }
+                return null;
+            }
+
+            var confirmation = MessageBox.Show(this,
+                "Для вопросов по документу нужен официальный Codex CLI от OpenAI. Установить его автоматически через Windows Package Manager?\n\nAPI key не потребуется.",
+                "Установить OpenAI Codex",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (confirmation != MessageBoxResult.Yes) return null;
+
+            CodexStatusTextBlock.Text = "Устанавливаю официальный OpenAI Codex…";
+            QuestionStatusTextBlock.Text = "Устанавливаю компонент для входа через ChatGPT…";
+            var install = await new CodexCliInstaller(winget).InstallAsync(cancellationToken);
+            if (!install.Succeeded) throw new InvalidOperationException(install.Message);
+
+            service = CreateCodexService();
+            if (service is null)
+            {
+                throw new InvalidOperationException(
+                    "Codex установлен, но Windows ещё не обновила путь к нему. Перезапустите PhotoSearch PDF и нажмите «Подключить OpenAI».");
+            }
+        }
+
+        CodexStatusTextBlock.Text = "Проверяю вход через подписку ChatGPT…";
+        var status = await service.GetLoginStatusAsync(cancellationToken);
+        if (status.SignedInWithChatGpt) return service;
+
+        CodexStatusTextBlock.Text = "Завершите вход в открывшемся браузере…";
+        QuestionStatusTextBlock.Text = "Ожидаю вход через ChatGPT…";
+        await service.LoginWithChatGptAsync(cancellationToken);
+        status = await service.GetLoginStatusAsync(cancellationToken);
+        if (!status.SignedInWithChatGpt)
+        {
+            throw new InvalidOperationException(
+                "Вход через подписку ChatGPT не подтверждён. Если Codex настроен с API key, выполните `codex logout`, затем повторите подключение.");
+        }
+        return service;
+    }
+
     private void SetQuestionRunning(bool running)
     {
         AskButton.IsEnabled = !running;
         CancelQuestionButton.IsEnabled = running;
         QuestionDocumentTextBox.IsEnabled = !running;
         QuestionTextBox.IsEnabled = !running;
-        LoginCodexButton.IsEnabled = !running;
+        LoginCodexButton.IsEnabled = !running && !Equals(LoginCodexButton.Content, "Подключено");
         RefreshCodexButton.IsEnabled = !running;
     }
 

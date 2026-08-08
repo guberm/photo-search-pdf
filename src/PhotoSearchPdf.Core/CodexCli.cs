@@ -19,8 +19,13 @@ public static class CodexCliLocator
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         if (!string.IsNullOrWhiteSpace(appData)) paths.Add(Path.Combine(appData, "npm"));
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrWhiteSpace(localAppData)) paths.Add(Path.Combine(localAppData, "Microsoft", "WindowsApps"));
-        paths.AddRange(FindDesktopAppResourceFolders());
+        if (!string.IsNullOrWhiteSpace(localAppData))
+        {
+            paths.Add(Path.Combine(localAppData, "Microsoft", "WindowsApps"));
+            paths.Add(Path.Combine(localAppData, "Microsoft", "WinGet", "Links"));
+        }
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        if (!string.IsNullOrWhiteSpace(programFiles)) paths.Add(Path.Combine(programFiles, "WinGet", "Links"));
 
         return FindInvocation(paths.Distinct(StringComparer.OrdinalIgnoreCase), File.Exists);
     }
@@ -32,6 +37,7 @@ public static class CodexCliLocator
         var paths = directories.ToArray();
         foreach (var directory in paths)
         {
+            if (IsProtectedDesktopPackagePath(directory)) continue;
             var executable = Path.Combine(directory, "codex.exe");
             if (fileExists(executable)) return new CodexCliInvocation(executable, []);
             var command = Path.Combine(directory, "codex.cmd");
@@ -43,32 +49,9 @@ public static class CodexCliLocator
         return null;
     }
 
-    private static IEnumerable<string> FindDesktopAppResourceFolders()
-    {
-        var windowsApps = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            "WindowsApps");
-        if (!Directory.Exists(windowsApps)) yield break;
-
-        string[] packages;
-        try
-        {
-            packages = Directory.GetDirectories(windowsApps, "OpenAI.Codex_*_x64__2p2nqsd0c76g0");
-        }
-        catch (UnauthorizedAccessException)
-        {
-            yield break;
-        }
-        catch (IOException)
-        {
-            yield break;
-        }
-
-        foreach (var package in packages.OrderByDescending(value => value, StringComparer.OrdinalIgnoreCase))
-        {
-            yield return Path.Combine(package, "app", "resources");
-        }
-    }
+    private static bool IsProtectedDesktopPackagePath(string path) =>
+        path.Contains($"{Path.DirectorySeparatorChar}WindowsApps{Path.DirectorySeparatorChar}OpenAI.Codex_",
+            StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class CodexQuestionService
