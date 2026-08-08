@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PhotoSearchPdf.App/PhotoSearchPdf.App.csproj" />
+    <Project Path="src/PhotoSearchPdf.Core/PhotoSearchPdf.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PhotoSearchPdf.Tests/PhotoSearchPdf.Tests.csproj" />
+  </Folder>
+</Solution>

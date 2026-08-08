@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore
+        run: dotnet restore PhotoSearchPdf.slnx
+      - name: Test
+        run: dotnet test PhotoSearchPdf.slnx --configuration Release --no-restore
+      - name: Publish Windows x64
+        run: dotnet publish src/PhotoSearchPdf.App/PhotoSearchPdf.App.csproj --configuration Release --runtime win-x64 --self-contained true --no-restore
