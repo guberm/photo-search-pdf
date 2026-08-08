@@ -12,6 +12,7 @@ PhotoSearch PDF is a Windows app that turns a folder of photos into one PDF with
 - one searchable PDF with the original image on every page;
 - `.md`, `.txt`, and `.ocr.json` sidecars with page boundaries;
 - built-in document Q&A through the official Codex CLI and ChatGPT sign-in;
+- direct Q&A for any PDF that already contains searchable text, without requiring a sidecar file;
 - automatic installation of the official Codex CLI through Windows Package Manager when it is missing;
 - grounded answers with page citations such as `[page 12]`;
 - local relevance selection for documents that are too large to send in full;
@@ -20,7 +21,7 @@ PhotoSearch PDF is a Windows app that turns a folder of photos into one PDF with
 ## Download and run
 
 1. Open the [latest Release](../../releases/latest).
-2. Download `PhotoSearchPdf-v1.1.0-win-x64.zip`.
+2. Download `PhotoSearchPdf-v1.1.1-win-x64.zip`.
 3. Extract the ZIP and run `PhotoSearchPdf.exe`.
 4. Choose a photo folder and OCR language, then select **Create searchable PDF**.
 
@@ -32,7 +33,7 @@ You can also pass a folder when starting the app:
 PhotoSearchPdf.exe "C:\Scans\Contract" --lang rus+eng
 ```
 
-Pass an existing PhotoSearch PDF document to open the Q&A tab directly:
+Pass any searchable PDF to open the Q&A tab directly:
 
 ```powershell
 PhotoSearchPdf.exe "C:\Scans\Contract\Contract-searchable.pdf"
@@ -46,9 +47,13 @@ PhotoSearch PDF does not use an OpenAI API key. It uses the official [Codex CLI 
 2. Select **Connect OpenAI**.
 3. If Codex is missing, approve the automatic installation of the official `OpenAI.Codex` package through Windows Package Manager (`winget`).
 4. Complete the ChatGPT sign-in in your browser.
-5. After the app shows **Connected using ChatGPT subscription**, choose a generated PDF, enter a question, and select **Ask question**.
+5. After the app shows **Connected as your-email@example.com (ChatGPT plan)**, choose any searchable PDF, enter a question, and select **Ask question**.
 
 If you skip setup and select **Ask question**, the same installation and sign-in wizard starts automatically. On the uncommon Windows system without `winget`, the app opens the official OpenAI installation guide.
+
+When a matching `.ocr.json` sidecar exists, the app uses its high-quality OCR page data. Otherwise, it extracts the embedded text from the PDF itself. If an external PDF is an image-only scan with no text layer, use **Create PDF** to run OCR first.
+
+The connection panel displays the ChatGPT account email and plan returned by the official Codex account interface. Select **Disconnect** to sign Codex out after confirming that this also affects other Codex apps in the same Windows account.
 
 The app checks `codex login status` and accepts only ChatGPT sign-in. API-key authentication is intentionally rejected. Requests use official `codex exec` in read-only and ephemeral mode, with user rules, plugins, and MCP disabled for the run. OpenAI documents [ChatGPT sign-in as subscription access](https://learn.chatgpt.com/docs/auth) and [`codex exec` as the supported non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode).
 
@@ -78,7 +83,7 @@ dotnet build src\PhotoSearchPdf.App\PhotoSearchPdf.App.csproj --configuration Re
 Build the release ZIP:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1 -Version 1.1.0
+powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1 -Version 1.1.1
 ```
 
 Architecture:
@@ -89,7 +94,7 @@ Architecture:
 
 ## Privacy
 
-OCR, PDF creation, and relevant-page selection are local operations. Photos and the PDF stay on the computer. Only after **Ask question** is selected are the question and selected OCR text sent to OpenAI through Codex. The data controls of the signed-in ChatGPT plan or workspace apply.
+OCR, PDF creation, PDF text extraction, and relevant-page selection are local operations. Photos and the PDF stay on the computer. Only after **Ask question** is selected are the question and selected document text sent to OpenAI through Codex. The data controls of the signed-in ChatGPT plan or workspace apply.
 
 ## License
 

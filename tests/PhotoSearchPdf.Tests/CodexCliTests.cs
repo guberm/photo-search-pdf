@@ -75,6 +75,12 @@ public sealed class CodexCliTests
     }
 
     [Fact]
+    public void BuildLogoutArguments_UsesOfficialCodexLogoutCommand()
+    {
+        Assert.Equal(["logout"], CodexQuestionService.BuildLogoutArguments());
+    }
+
+    [Fact]
     public void BuildPrompt_RequiresGroundedAnswerAndPageCitations()
     {
         var prompt = CodexQuestionService.BuildPrompt(
@@ -93,5 +99,20 @@ public sealed class CodexCliTests
         var path = CodexQuestionService.GetSafeWorkingDirectory("C:\\Users\\me\\AppData\\Local");
 
         Assert.Equal(Path.Combine("C:\\Users\\me\\AppData\\Local", "PhotoSearchPdf", "llm-workspace"), path);
+    }
+
+    [Fact]
+    public void ParseAccountReadResponse_ReturnsChatGptEmailAndPlan()
+    {
+        const string response =
+            "{\"id\":2,\"result\":{\"account\":{\"type\":\"chatgpt\",\"email\":\"person@example.com\",\"planType\":\"pro\"},\"requiresOpenaiAuth\":true}}";
+
+        var account = CodexQuestionService.ParseAccountReadResponse(response);
+
+        Assert.NotNull(account);
+        Assert.Equal("person@example.com", account.Email);
+        Assert.Equal("pro", account.PlanType);
+        Assert.Equal("Connected as person@example.com (ChatGPT Pro)",
+            CodexQuestionService.BuildConnectedMessage(account));
     }
 }

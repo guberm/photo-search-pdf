@@ -49,15 +49,54 @@ public sealed class DocumentContextBuilderTests : IDisposable
     }
 
     [Fact]
-    public void Build_WithoutSidecarForPdf_ExplainsRequiredFile()
+    public void Build_FromSearchablePdfWithoutSidecar_ExtractsEmbeddedText()
     {
-        var pdf = Path.Combine(_folder, "missing.pdf");
-        File.WriteAllText(pdf, string.Empty);
+        var pdf = Path.Combine(_folder, "external.pdf");
+        WriteSearchablePdf(pdf,
+        [
+            "Artificial intelligence systems are evaluated for trustworthiness.",
+            "Risk management should continue throughout the system lifecycle."
+        ]);
 
-        var error = Assert.Throws<FileNotFoundException>(() =>
+        var result = DocumentContextBuilder.Build(pdf, "What continues throughout the lifecycle?", 10_000);
+
+        Assert.Equal(2, result.TotalPages);
+        Assert.Equal([1, 2], result.SelectedPages);
+        Assert.Equal(Path.GetFullPath(pdf), result.SourcePath);
+        Assert.Contains("=== Page 2 | external.pdf ===", result.Text);
+        Assert.Contains("Risk management should continue throughout the system lifecycle.", result.Text);
+    }
+
+    [Fact]
+    public void Build_FromImageOnlyPdfWithoutSidecar_ExplainsOcrRequirement()
+    {
+        var pdf = Path.Combine(_folder, "scan.pdf");
+        WriteSearchablePdf(pdf, [string.Empty]);
+
+        var error = Assert.Throws<InvalidDataException>(() =>
             DocumentContextBuilder.Build(pdf, "Question", 1_000));
 
-        Assert.Contains(".ocr.json", error.Message);
+        Assert.Contains("does not contain searchable text", error.Message);
+        Assert.Contains("Create PDF", error.Message);
+    }
+
+    private void WriteSearchablePdf(string pdfPath, IReadOnlyList<string> pageTexts)
+    {
+        var image = Path.Combine(_folder, "context-page.png");
+        File.WriteAllBytes(image, Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
+        var pages = pageTexts.Select((text, index) => new PdfPageInput(
+            image,
+            new OcrPage(
+                index + 1,
+                image,
+                100,
+                100,
+                string.IsNullOrWhiteSpace(text)
+                    ? []
+                    : [new OcrLine(text, new OcrBox(0.1, 0.2, 0.8, 0.1))])))
+            .ToArray();
+        SearchablePdfWriter.Write(pdfPath, pages, "External document");
     }
 
     private static void WriteManifest(string path, IReadOnlyList<(int Page, string Source, string Text)> pages)

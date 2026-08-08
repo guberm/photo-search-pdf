@@ -25,6 +25,19 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="18,10"/>
         </Style>
+        <Style x:Key="ConnectionButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#DBEAFE"/>
+                    <Setter Property="Foreground" Value="#172033"/>
+                    <Setter Property="BorderBrush" Value="#93C5FD"/>
+                    <Setter Property="Opacity" Value="1"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <TabControl x:Name="MainTabs" Margin="20" Background="Transparent" BorderThickness="0">
@@ -124,14 +137,16 @@
 
                 <Border Grid.Row="1" Background="#EFF6FF" CornerRadius="10" Padding="14" BorderBrush="#BFDBFE" BorderThickness="1">
                     <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="OpenAI connection" FontWeight="SemiBold" Foreground="#1E3A8A"/>
                             <TextBlock x:Name="CodexStatusTextBlock" Text="Checking Codex CLI…" Foreground="#475467" Margin="0,3,0,0"/>
                         </StackPanel>
                         <Button x:Name="RefreshCodexButton" Grid.Column="1" Content="Check" Click="RefreshCodex_Click"/>
                         <Button x:Name="LoginCodexButton" Grid.Column="2" Content="Connect OpenAI" Click="LoginCodex_Click"
-                                Background="#2563EB" Foreground="White" BorderBrush="#2563EB"/>
+                                Style="{StaticResource ConnectionButtonStyle}"/>
+                        <Button x:Name="DisconnectCodexButton" Grid.Column="3" Content="Disconnect" Click="DisconnectCodex_Click"
+                                Foreground="#172033" Visibility="Collapsed"/>
                     </Grid>
                 </Border>
 
@@ -139,7 +154,7 @@
                     <TextBlock Text="Document" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,7"/>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBox x:Name="QuestionDocumentTextBox" ToolTip="A PDF created by PhotoSearch PDF, or an .ocr.json file"/>
+                        <TextBox x:Name="QuestionDocumentTextBox" ToolTip="Any searchable PDF, or a PhotoSearch PDF .ocr.json file"/>
                         <Button Grid.Column="1" Content="Browse…" Click="BrowseQuestionDocument_Click"/>
                     </Grid>
                 </StackPanel>
@@ -171,7 +186,7 @@
                 </Border>
 
                 <TextBlock Grid.Row="6" Margin="0,12,0,0" Foreground="#667085" FontSize="12" TextWrapping="Wrap"
-                           Text="When you ask a question, selected OCR text is sent to OpenAI. Photos and the PDF itself are not uploaded. The answer is grounded in that context and includes page citations."/>
+                           Text="When you ask a question, selected document text is sent to OpenAI. Photos and the PDF itself are not uploaded. The answer is grounded in that context and includes page citations."/>
             </Grid>
         </TabItem>
     </TabControl>

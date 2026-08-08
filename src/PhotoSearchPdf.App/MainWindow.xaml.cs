@@ -205,6 +205,7 @@ public partial class MainWindow : Window
                     : "Codex is not installed; Windows Package Manager was not found";
                 LoginCodexButton.Content = wingetAvailable ? "Install and connect" : "Open setup guide";
                 LoginCodexButton.IsEnabled = true;
+                DisconnectCodexButton.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -212,6 +213,9 @@ public partial class MainWindow : Window
             CodexStatusTextBlock.Text = status.Message;
             LoginCodexButton.Content = status.SignedInWithChatGpt ? "Connected" : "Sign in with ChatGPT";
             LoginCodexButton.IsEnabled = !status.SignedInWithChatGpt;
+            DisconnectCodexButton.Visibility = status.SignedInWithChatGpt
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
         catch (Exception error)
         {
@@ -234,6 +238,7 @@ public partial class MainWindow : Window
             {
                 CodexStatusTextBlock.Text = "Connected using ChatGPT subscription";
                 LoginCodexButton.Content = "Connected";
+                DisconnectCodexButton.Visibility = Visibility.Visible;
             }
         }
         catch (OperationCanceledException)
@@ -244,6 +249,48 @@ public partial class MainWindow : Window
         {
             CodexStatusTextBlock.Text = "Could not connect OpenAI";
             MessageBox.Show(this, error.Message, "OpenAI connection", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _questionCancellation?.Dispose();
+            _questionCancellation = null;
+            SetQuestionRunning(false);
+            await RefreshCodexStatusAsync();
+        }
+    }
+
+    private async void DisconnectCodex_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmation = MessageBox.Show(this,
+            "Disconnecting signs Codex out of ChatGPT for this Windows account and affects other Codex apps. Continue?",
+            "Disconnect ChatGPT",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirmation != MessageBoxResult.Yes) return;
+
+        var service = CreateCodexService();
+        if (service is null)
+        {
+            CodexStatusTextBlock.Text = "Codex CLI was not found";
+            return;
+        }
+
+        _questionCancellation = new CancellationTokenSource();
+        SetQuestionRunning(true);
+        CodexStatusTextBlock.Text = "Disconnecting ChatGPT…";
+        try
+        {
+            await service.LogoutAsync(_questionCancellation.Token);
+            CodexStatusTextBlock.Text = "Disconnected from ChatGPT";
+        }
+        catch (OperationCanceledException)
+        {
+            CodexStatusTextBlock.Text = "Disconnect canceled";
+        }
+        catch (Exception error)
+        {
+            CodexStatusTextBlock.Text = "Could not disconnect ChatGPT";
+            MessageBox.Show(this, error.Message, "Disconnect ChatGPT", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
@@ -285,7 +332,7 @@ public partial class MainWindow : Window
                 ? $"Pages selected for context: {context.SelectedPages.Count} of {context.TotalPages}"
                 : $"All pages included in context: {context.TotalPages}";
 
-            QuestionStatusTextBlock.Text = "OpenAI is analyzing the OCR text…";
+            QuestionStatusTextBlock.Text = "OpenAI is analyzing the document text…";
             var answer = await service.AskAsync(question, context, _questionCancellation.Token);
             AnswerTextBox.Text = answer;
             QuestionStatusTextBlock.Text = "Answer ready";
@@ -378,6 +425,7 @@ public partial class MainWindow : Window
         QuestionDocumentTextBox.IsEnabled = !running;
         QuestionTextBox.IsEnabled = !running;
         LoginCodexButton.IsEnabled = !running && !Equals(LoginCodexButton.Content, "Connected");
+        DisconnectCodexButton.IsEnabled = !running;
         RefreshCodexButton.IsEnabled = !running;
     }
 

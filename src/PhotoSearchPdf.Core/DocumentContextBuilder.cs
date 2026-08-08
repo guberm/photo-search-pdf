@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 
 namespace PhotoSearchPdf.Core;
 
@@ -24,9 +26,7 @@ public static partial class DocumentContextBuilder
         ArgumentException.ThrowIfNullOrWhiteSpace(question);
         if (maxCharacters < 200) throw new ArgumentOutOfRangeException(nameof(maxCharacters));
 
-        var sourcePath = ResolveManifestPath(Path.GetFullPath(documentPath));
-        var pages = ReadPages(sourcePath);
-        if (pages.Count == 0) throw new InvalidDataException("The OCR JSON contains no recognized pages.");
+        var (sourcePath, pages) = ReadDocument(Path.GetFullPath(documentPath));
 
         var formatted = pages.Select(FormatPage).ToArray();
         var fullLength = formatted.Sum(value => value.Length + Environment.NewLine.Length);
@@ -80,27 +80,38 @@ public static partial class DocumentContextBuilder
             sourcePath);
     }
 
-    private static string ResolveManifestPath(string documentPath)
+    private static (string SourcePath, IReadOnlyList<OcrContextPage> Pages) ReadDocument(string documentPath)
     {
         if (documentPath.EndsWith(".ocr.json", StringComparison.OrdinalIgnoreCase))
         {
-            if (File.Exists(documentPath)) return documentPath;
+            if (File.Exists(documentPath))
+            {
+                var pages = ReadManifestPages(documentPath);
+                if (pages.Count == 0) throw new InvalidDataException("The OCR JSON contains no recognized pages.");
+                return (documentPath, pages);
+            }
             throw new FileNotFoundException("The OCR JSON file was not found.", documentPath);
         }
 
         if (documentPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
         {
+            if (!File.Exists(documentPath)) throw new FileNotFoundException("The PDF file was not found.", documentPath);
+
             var manifest = OutputPaths.GetSidecars(documentPath).Json;
-            if (File.Exists(manifest)) return manifest;
-            throw new FileNotFoundException(
-                $"{Path.GetFileName(manifest)} was not found next to the PDF. Choose a PDF created by PhotoSearch PDF or its matching .ocr.json file.",
-                manifest);
+            if (File.Exists(manifest))
+            {
+                var pages = ReadManifestPages(manifest);
+                if (pages.Count == 0) throw new InvalidDataException("The OCR JSON contains no recognized pages.");
+                return (manifest, pages);
+            }
+
+            return (documentPath, ReadPdfPages(documentPath));
         }
 
-        throw new NotSupportedException("For document questions, choose a PDF created by the app or an .ocr.json file.");
+        throw new NotSupportedException("For document questions, choose a PDF or an .ocr.json file.");
     }
 
-    private static IReadOnlyList<OcrContextPage> ReadPages(string manifestPath)
+    private static IReadOnlyList<OcrContextPage> ReadManifestPages(string manifestPath)
     {
         using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
         if (!document.RootElement.TryGetProperty("pages", out var pagesElement) ||
@@ -122,6 +133,26 @@ public static partial class DocumentContextBuilder
             pages.Add(new OcrContextPage(pageNumber, sourceFile, text));
         }
         return pages.OrderBy(page => page.PageNumber).ToArray();
+    }
+
+    private static IReadOnlyList<OcrContextPage> ReadPdfPages(string pdfPath)
+    {
+        using var document = PdfDocument.Open(pdfPath);
+        var sourceFile = Path.GetFileName(pdfPath);
+        var pages = document.GetPages()
+            .Select(page => new OcrContextPage(
+                page.Number,
+                sourceFile,
+                ContentOrderTextExtractor.GetText(page).Replace("\0", string.Empty, StringComparison.Ordinal)))
+            .ToArray();
+
+        if (pages.All(page => string.IsNullOrWhiteSpace(page.Text)))
+        {
+            throw new InvalidDataException(
+                "This PDF does not contain searchable text. If it is a scan, use the Create PDF tab to run OCR first.");
+        }
+
+        return pages;
     }
 
     private static string ReadLines(JsonElement page)
