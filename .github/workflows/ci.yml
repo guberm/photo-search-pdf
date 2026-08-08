@@ -11,8 +11,8 @@ jobs:
   test:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
       - name: Restore
@@ -20,4 +20,4 @@ jobs:
       - name: Test
         run: dotnet test PhotoSearchPdf.slnx --configuration Release --no-restore
       - name: Publish Windows x64
-        run: dotnet publish src/PhotoSearchPdf.App/PhotoSearchPdf.App.csproj --configuration Release --runtime win-x64 --self-contained true --no-restore
+        run: dotnet publish src/PhotoSearchPdf.App/PhotoSearchPdf.App.csproj --configuration Release --runtime win-x64 --self-contained true
