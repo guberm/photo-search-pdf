@@ -1,31 +1,50 @@
 # PhotoSearch PDF
 
-Windows-приложение, которое превращает папку с фотографиями в один PDF с невидимым OCR-слоем. Текст в PDF можно искать, выделять и извлекать. Рядом автоматически создаются Markdown, plain text и JSON для будущей загрузки в LLM/RAG.
+Windows-приложение, которое превращает папку с фотографиями в один PDF с невидимым OCR-слоем. Текст в PDF можно искать, выделять и извлекать. Во второй вкладке можно задавать вопросы по документу через подписку ChatGPT — без API key и отдельного API-биллинга.
 
 ## Возможности
 
-- полностью локальная обработка без API-ключей и отправки фотографий в облако;
+- полностью локальные OCR и создание PDF без отправки фотографий в облако;
 - OCR на русском, английском или сразу на двух языках;
 - JPG, JPEG, PNG, BMP, TIFF и WebP;
 - естественная сортировка файлов: `page2.jpg` идёт перед `page10.jpg`;
 - опциональная обработка подпапок;
 - один searchable PDF с оригинальным изображением каждой страницы;
 - sidecar-файлы `.md`, `.txt` и `.ocr.json` с разделением по страницам;
+- встроенные вопросы по документу через официальный Codex CLI и вход ChatGPT Subscription;
+- ответы с обязательными ссылками вида `[стр. 12]`;
+- для больших документов локально выбираются наиболее релевантные страницы;
 - drag-and-drop папки, отмена процесса и запуск с путём в командной строке.
 
 ## Скачать и запустить
 
 1. Откройте [последний Release](../../releases/latest).
-2. Скачайте `PhotoSearchPdf-v1.0.0-win-x64.zip`.
+2. Скачайте `PhotoSearchPdf-v1.1.0-win-x64.zip`.
 3. Распакуйте архив и запустите `PhotoSearchPdf.exe`.
 4. Выберите папку, язык OCR и нажмите **Создать searchable PDF**.
 
 Сборка self-contained: устанавливать .NET не нужно. Для нативного OCR требуется Microsoft Visual C++ 2015–2022 Redistributable, который уже установлен на большинстве актуальных Windows-систем.
 
+## Вопросы через подписку ChatGPT
+
+PhotoSearch PDF не использует OpenAI API key. Для вопросов нужен установленный [Codex CLI или Codex desktop app](https://learn.chatgpt.com/docs/codex/cli), доступный как команда `codex`.
+
+1. Откройте вкладку **Вопросы к документу**.
+2. Нажмите **Войти через ChatGPT** и завершите вход в браузере. Если вход уже выполнен, приложение покажет «Подключено через подписку ChatGPT».
+3. Выберите созданный приложением PDF, введите вопрос и нажмите **Задать вопрос**.
+
+Приложение проверяет `codex login status` и принимает только вход через ChatGPT. Авторизация API key намеренно не используется. Вызов выполняется через официальный `codex exec` в read-only и ephemeral режиме; пользовательские правила, плагины и MCP отключаются для этого запроса. OpenAI официально описывает [вход через ChatGPT как subscription access](https://learn.chatgpt.com/docs/auth) и [`codex exec` как режим автоматизации](https://learn.chatgpt.com/docs/non-interactive-mode).
+
 Путь можно передать при запуске:
 
 ```powershell
 PhotoSearchPdf.exe "C:\Scans\Contract" --lang rus+eng
+```
+
+Можно сразу открыть вкладку вопросов, передав созданный PDF:
+
+```powershell
+PhotoSearchPdf.exe "C:\Scans\Contract\Contract-searchable.pdf"
 ```
 
 ## Что создаётся
@@ -36,7 +55,7 @@ PhotoSearchPdf.exe "C:\Scans\Contract" --lang rus+eng
 - `Contract-searchable.txt` — чистый текст;
 - `Contract-searchable.ocr.json` — текст, размеры страниц и нормализованные координаты строк.
 
-Такой набор уже можно загрузить в ChatGPT/Claude или проиндексировать в локальной RAG-системе. Следующий логичный этап — встроенный чат по документу с цитатами на номера страниц.
+Такой набор можно использовать во встроенных вопросах, загрузить в ChatGPT/Claude или проиндексировать в локальной RAG-системе.
 
 ## Почему не Firecrawl OCR
 
@@ -54,18 +73,18 @@ dotnet build src\PhotoSearchPdf.App\PhotoSearchPdf.App.csproj --configuration Re
 Сборка релизного ZIP:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1 -Version 1.0.0
+powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1 -Version 1.1.0
 ```
 
 Архитектура:
 
-- `PhotoSearchPdf.Core` — discovery, Tesseract OCR, PDF text layer, sidecars, conversion pipeline;
+- `PhotoSearchPdf.Core` — discovery, Tesseract OCR, PDF text layer, sidecars, выбор контекста и безопасный запуск Codex;
 - `PhotoSearchPdf.App` — WPF UI;
 - `PhotoSearchPdf.Tests` — unit и end-to-end OCR/PDF tests.
 
 ## Privacy
 
-Приложение не выполняет сетевые запросы во время работы. Пути, фотографии и распознанный текст остаются на компьютере пользователя.
+OCR, создание PDF и локальный выбор релевантных страниц не выполняют сетевых запросов. Фотографии и PDF остаются на компьютере. Только после нажатия **Задать вопрос** выбранный OCR-текст и вопрос отправляются в OpenAI через Codex; применяются настройки хранения данных вашего ChatGPT workspace/плана.
 
 ## License
 

@@ -10,22 +10,36 @@ namespace PhotoSearchPdf.App;
 public partial class MainWindow : Window
 {
     private CancellationTokenSource? _cancellation;
+    private CancellationTokenSource? _questionCancellation;
     private string? _completedPdf;
 
     public MainWindow() => InitializeComponent();
 
-    private void Window_Loaded(object sender, RoutedEventArgs e)
+    private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
         var folder = args.FirstOrDefault(Directory.Exists);
         if (folder is not null) InputFolderTextBox.Text = Path.GetFullPath(folder);
 
-        var languageIndex = Array.FindIndex(args, arg => arg.Equals("--lang", StringComparison.OrdinalIgnoreCase));
-        if (languageIndex < 0 || languageIndex + 1 >= args.Length) return;
-        foreach (var item in LanguageComboBox.Items.OfType<ComboBoxItem>())
+        var document = args.FirstOrDefault(path => File.Exists(path) &&
+            (path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ||
+             path.EndsWith(".ocr.json", StringComparison.OrdinalIgnoreCase)));
+        if (document is not null)
         {
-            if (Equals(item.Tag, args[languageIndex + 1])) LanguageComboBox.SelectedItem = item;
+            QuestionDocumentTextBox.Text = Path.GetFullPath(document);
+            MainTabs.SelectedIndex = 1;
         }
+
+        var languageIndex = Array.FindIndex(args, arg => arg.Equals("--lang", StringComparison.OrdinalIgnoreCase));
+        if (languageIndex >= 0 && languageIndex + 1 < args.Length)
+        {
+            foreach (var item in LanguageComboBox.Items.OfType<ComboBoxItem>())
+            {
+                if (Equals(item.Tag, args[languageIndex + 1])) LanguageComboBox.SelectedItem = item;
+            }
+        }
+
+        await RefreshCodexStatusAsync();
     }
 
     private void BrowseInput_Click(object sender, RoutedEventArgs e)
@@ -114,6 +128,7 @@ public partial class MainWindow : Window
 
             _completedPdf = result.PdfPath;
             OpenButton.IsEnabled = true;
+            QuestionDocumentTextBox.Text = result.PdfPath;
             ProgressBar.Value = ProgressBar.Maximum;
             StatusTextBlock.Text = $"Готово: {result.PageCount} страниц";
             AppendLog($"PDF: {result.PdfPath}");
@@ -158,6 +173,159 @@ public partial class MainWindow : Window
         {
             Process.Start(new ProcessStartInfo(completedPdf) { UseShellExecute = true });
         }
+    }
+
+    private void BrowseQuestionDocument_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Выберите searchable PDF или OCR JSON",
+            Filter = "PhotoSearch PDF (*.pdf;*.ocr.json)|*.pdf;*.ocr.json|PDF (*.pdf)|*.pdf|OCR JSON (*.ocr.json)|*.ocr.json",
+            CheckFileExists = true
+        };
+        var currentDirectory = Path.GetDirectoryName(QuestionDocumentTextBox.Text.Trim().Trim('"'));
+        if (Directory.Exists(currentDirectory)) dialog.InitialDirectory = currentDirectory;
+        if (dialog.ShowDialog(this) == true) QuestionDocumentTextBox.Text = dialog.FileName;
+    }
+
+    private async void RefreshCodex_Click(object sender, RoutedEventArgs e) => await RefreshCodexStatusAsync();
+
+    private async Task RefreshCodexStatusAsync()
+    {
+        RefreshCodexButton.IsEnabled = false;
+        CodexStatusTextBlock.Text = "Проверяю Codex CLI…";
+        try
+        {
+            var service = CreateCodexService();
+            if (service is null)
+            {
+                CodexStatusTextBlock.Text = "Codex CLI не найден — установите Codex и повторите проверку";
+                LoginCodexButton.IsEnabled = false;
+                return;
+            }
+
+            var status = await service.GetLoginStatusAsync();
+            CodexStatusTextBlock.Text = status.Message;
+            LoginCodexButton.Content = status.SignedInWithChatGpt ? "Переподключить" : "Войти через ChatGPT";
+            LoginCodexButton.IsEnabled = true;
+        }
+        catch (Exception error)
+        {
+            CodexStatusTextBlock.Text = $"Не удалось проверить вход: {error.Message}";
+        }
+        finally
+        {
+            RefreshCodexButton.IsEnabled = true;
+        }
+    }
+
+    private async void LoginCodex_Click(object sender, RoutedEventArgs e)
+    {
+        var service = CreateCodexService();
+        if (service is null)
+        {
+            MessageBox.Show(this,
+                "Codex CLI не найден. Установите Codex, затем нажмите «Проверить».",
+                "Codex CLI не найден",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        LoginCodexButton.IsEnabled = false;
+        CodexStatusTextBlock.Text = "Завершите вход в открывшемся браузере…";
+        try
+        {
+            await service.LoginWithChatGptAsync();
+            await RefreshCodexStatusAsync();
+        }
+        catch (Exception error)
+        {
+            CodexStatusTextBlock.Text = "Вход не завершён";
+            MessageBox.Show(this, error.Message, "Вход через ChatGPT", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            LoginCodexButton.IsEnabled = true;
+        }
+    }
+
+    private async void Ask_Click(object sender, RoutedEventArgs e)
+    {
+        var documentPath = QuestionDocumentTextBox.Text.Trim().Trim('"');
+        var question = QuestionTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            MessageBox.Show(this, "Введите вопрос по документу.", "PhotoSearch PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var service = CreateCodexService();
+        if (service is null)
+        {
+            MessageBox.Show(this, "Codex CLI не найден. Установите Codex и войдите через ChatGPT.",
+                "Требуется Codex CLI", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        _questionCancellation = new CancellationTokenSource();
+        SetQuestionRunning(true);
+        AnswerTextBox.Clear();
+        QuestionStatusTextBlock.Text = "Проверяю подписку ChatGPT…";
+        try
+        {
+            var login = await service.GetLoginStatusAsync(_questionCancellation.Token);
+            if (!login.SignedInWithChatGpt)
+            {
+                throw new InvalidOperationException("Сначала нажмите «Войти через ChatGPT». Вход через API key здесь намеренно не используется.");
+            }
+
+            QuestionStatusTextBlock.Text = "Подбираю страницы документа…";
+            var context = await Task.Run(
+                () => DocumentContextBuilder.Build(documentPath, question),
+                _questionCancellation.Token);
+            ContextInfoTextBlock.Text = context.IsTruncated
+                ? $"В контекст выбрано страниц: {context.SelectedPages.Count} из {context.TotalPages}"
+                : $"В контексте все страницы: {context.TotalPages}";
+
+            QuestionStatusTextBlock.Text = "OpenAI анализирует OCR-текст…";
+            var answer = await service.AskAsync(question, context, _questionCancellation.Token);
+            AnswerTextBox.Text = answer;
+            QuestionStatusTextBlock.Text = "Ответ готов";
+        }
+        catch (OperationCanceledException)
+        {
+            QuestionStatusTextBlock.Text = "Вопрос отменён";
+        }
+        catch (Exception error)
+        {
+            QuestionStatusTextBlock.Text = "Не удалось получить ответ";
+            MessageBox.Show(this, error.Message, "Вопрос к документу", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _questionCancellation?.Dispose();
+            _questionCancellation = null;
+            SetQuestionRunning(false);
+        }
+    }
+
+    private void CancelQuestion_Click(object sender, RoutedEventArgs e) => _questionCancellation?.Cancel();
+
+    private static CodexQuestionService? CreateCodexService()
+    {
+        var invocation = CodexCliLocator.FindInvocation();
+        return invocation is null ? null : new CodexQuestionService(invocation);
+    }
+
+    private void SetQuestionRunning(bool running)
+    {
+        AskButton.IsEnabled = !running;
+        CancelQuestionButton.IsEnabled = running;
+        QuestionDocumentTextBox.IsEnabled = !running;
+        QuestionTextBox.IsEnabled = !running;
+        LoginCodexButton.IsEnabled = !running;
+        RefreshCodexButton.IsEnabled = !running;
     }
 
     private void Window_Drop(object sender, DragEventArgs e)

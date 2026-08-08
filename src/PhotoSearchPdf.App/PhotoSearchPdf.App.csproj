@@ -9,9 +9,9 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <AssemblyName>PhotoSearchPdf</AssemblyName>
     <RootNamespace>PhotoSearchPdf.App</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>PhotoSearch PDF</Product>
-    <Description>Turn a folder of photos into a searchable OCR PDF.</Description>
+    <Description>Turn photos into a searchable OCR PDF and ask questions through a ChatGPT subscription.</Description>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
