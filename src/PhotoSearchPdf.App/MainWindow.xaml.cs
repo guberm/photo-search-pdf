@@ -44,7 +44,7 @@ public partial class MainWindow : Window
 
     private void BrowseInput_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFolderDialog { Title = "Выберите папку с фотографиями" };
+        var dialog = new OpenFolderDialog { Title = "Choose a photo folder" };
         if (Directory.Exists(InputFolderTextBox.Text)) dialog.InitialDirectory = InputFolderTextBox.Text;
         if (dialog.ShowDialog(this) == true) InputFolderTextBox.Text = dialog.FolderName;
     }
@@ -53,7 +53,7 @@ public partial class MainWindow : Window
     {
         var dialog = new SaveFileDialog
         {
-            Title = "Куда сохранить searchable PDF",
+            Title = "Save the searchable PDF",
             Filter = "PDF document (*.pdf)|*.pdf",
             DefaultExt = ".pdf",
             AddExtension = true,
@@ -73,14 +73,14 @@ public partial class MainWindow : Window
         var folder = InputFolderTextBox?.Text.Trim().Trim('"') ?? string.Empty;
         if (!Directory.Exists(folder))
         {
-            if (ImageCountTextBlock is not null) ImageCountTextBlock.Text = "Папка не найдена";
+            if (ImageCountTextBlock is not null) ImageCountTextBlock.Text = "Folder not found";
             return;
         }
 
         try
         {
             var count = ImageDiscovery.FindImages(folder, RecursiveCheckBox?.IsChecked == true).Count;
-            ImageCountTextBlock.Text = $"Найдено изображений: {count}";
+            ImageCountTextBlock.Text = $"Images found: {count}";
             OutputPdfTextBox.Text = OutputPaths.ResolvePdfPath(folder);
         }
         catch (Exception error)
@@ -95,15 +95,15 @@ public partial class MainWindow : Window
         var output = OutputPdfTextBox.Text.Trim().Trim('"');
         if (!Directory.Exists(folder))
         {
-            MessageBox.Show(this, "Выберите существующую папку с фотографиями.", "PhotoSearch PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, "Choose an existing photo folder.", "PhotoSearch PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(output)) output = OutputPaths.ResolvePdfPath(folder);
         if (!output.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) output += ".pdf";
         if (File.Exists(output) && MessageBox.Show(this,
-                "Этот PDF уже существует. Перезаписать его?",
-                "Подтверждение перезаписи",
+                "This PDF already exists. Replace it?",
+                "Confirm replacement",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question) != MessageBoxResult.Yes)
         {
@@ -130,21 +130,21 @@ public partial class MainWindow : Window
             OpenButton.IsEnabled = true;
             QuestionDocumentTextBox.Text = result.PdfPath;
             ProgressBar.Value = ProgressBar.Maximum;
-            StatusTextBlock.Text = $"Готово: {result.PageCount} страниц";
+            StatusTextBlock.Text = $"Done: {result.PageCount} pages";
             AppendLog($"PDF: {result.PdfPath}");
             AppendLog($"Markdown: {result.Sidecars.Markdown}");
-            AppendLog("OCR-поиск и sidecar-файлы созданы.");
+            AppendLog("Searchable OCR PDF and sidecar files created.");
         }
         catch (OperationCanceledException)
         {
-            StatusTextBlock.Text = "Операция отменена";
-            AppendLog("Отменено пользователем.");
+            StatusTextBlock.Text = "Operation canceled";
+            AppendLog("Canceled by the user.");
         }
         catch (Exception error)
         {
-            StatusTextBlock.Text = "Ошибка";
+            StatusTextBlock.Text = "Error";
             AppendLog(error.ToString());
-            MessageBox.Show(this, error.Message, "Не удалось создать PDF", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(this, error.Message, "Could not create PDF", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -179,7 +179,7 @@ public partial class MainWindow : Window
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Выберите searchable PDF или OCR JSON",
+            Title = "Choose a searchable PDF or OCR JSON file",
             Filter = "PhotoSearch PDF (*.pdf;*.ocr.json)|*.pdf;*.ocr.json|PDF (*.pdf)|*.pdf|OCR JSON (*.ocr.json)|*.ocr.json",
             CheckFileExists = true
         };
@@ -193,7 +193,7 @@ public partial class MainWindow : Window
     private async Task RefreshCodexStatusAsync()
     {
         RefreshCodexButton.IsEnabled = false;
-        CodexStatusTextBlock.Text = "Проверяю Codex CLI…";
+        CodexStatusTextBlock.Text = "Checking Codex CLI…";
         try
         {
             var service = CreateCodexService();
@@ -201,21 +201,21 @@ public partial class MainWindow : Window
             {
                 var wingetAvailable = CodexCliInstaller.FindWinget() is not null;
                 CodexStatusTextBlock.Text = wingetAvailable
-                    ? "Codex не установлен — приложение может установить его автоматически"
-                    : "Codex не установлен; Windows Package Manager не найден";
-                LoginCodexButton.Content = wingetAvailable ? "Установить и подключить" : "Открыть инструкцию";
+                    ? "Codex is not installed — the app can install it automatically"
+                    : "Codex is not installed; Windows Package Manager was not found";
+                LoginCodexButton.Content = wingetAvailable ? "Install and connect" : "Open setup guide";
                 LoginCodexButton.IsEnabled = true;
                 return;
             }
 
             var status = await service.GetLoginStatusAsync();
             CodexStatusTextBlock.Text = status.Message;
-            LoginCodexButton.Content = status.SignedInWithChatGpt ? "Подключено" : "Войти через ChatGPT";
+            LoginCodexButton.Content = status.SignedInWithChatGpt ? "Connected" : "Sign in with ChatGPT";
             LoginCodexButton.IsEnabled = !status.SignedInWithChatGpt;
         }
         catch (Exception error)
         {
-            CodexStatusTextBlock.Text = $"Не удалось проверить вход: {error.Message}";
+            CodexStatusTextBlock.Text = $"Could not check sign-in: {error.Message}";
         }
         finally
         {
@@ -232,18 +232,18 @@ public partial class MainWindow : Window
             var service = await EnsureCodexReadyAsync(_questionCancellation.Token);
             if (service is not null)
             {
-                CodexStatusTextBlock.Text = "Подключено через подписку ChatGPT";
-                LoginCodexButton.Content = "Подключено";
+                CodexStatusTextBlock.Text = "Connected using ChatGPT subscription";
+                LoginCodexButton.Content = "Connected";
             }
         }
         catch (OperationCanceledException)
         {
-            CodexStatusTextBlock.Text = "Подключение отменено";
+            CodexStatusTextBlock.Text = "Connection canceled";
         }
         catch (Exception error)
         {
-            CodexStatusTextBlock.Text = "Не удалось подключить OpenAI";
-            MessageBox.Show(this, error.Message, "Подключение OpenAI", MessageBoxButton.OK, MessageBoxImage.Warning);
+            CodexStatusTextBlock.Text = "Could not connect OpenAI";
+            MessageBox.Show(this, error.Message, "OpenAI connection", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
@@ -260,44 +260,44 @@ public partial class MainWindow : Window
         var question = QuestionTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(question))
         {
-            MessageBox.Show(this, "Введите вопрос по документу.", "PhotoSearch PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, "Enter a question about the document.", "PhotoSearch PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         _questionCancellation = new CancellationTokenSource();
         SetQuestionRunning(true);
         AnswerTextBox.Clear();
-        QuestionStatusTextBlock.Text = "Подготавливаю подключение OpenAI…";
+        QuestionStatusTextBlock.Text = "Preparing the OpenAI connection…";
         try
         {
             var service = await EnsureCodexReadyAsync(_questionCancellation.Token);
             if (service is null)
             {
-                QuestionStatusTextBlock.Text = "Подключение OpenAI не завершено";
+                QuestionStatusTextBlock.Text = "OpenAI setup was not completed";
                 return;
             }
 
-            QuestionStatusTextBlock.Text = "Подбираю страницы документа…";
+            QuestionStatusTextBlock.Text = "Selecting relevant document pages…";
             var context = await Task.Run(
                 () => DocumentContextBuilder.Build(documentPath, question),
                 _questionCancellation.Token);
             ContextInfoTextBlock.Text = context.IsTruncated
-                ? $"В контекст выбрано страниц: {context.SelectedPages.Count} из {context.TotalPages}"
-                : $"В контексте все страницы: {context.TotalPages}";
+                ? $"Pages selected for context: {context.SelectedPages.Count} of {context.TotalPages}"
+                : $"All pages included in context: {context.TotalPages}";
 
-            QuestionStatusTextBlock.Text = "OpenAI анализирует OCR-текст…";
+            QuestionStatusTextBlock.Text = "OpenAI is analyzing the OCR text…";
             var answer = await service.AskAsync(question, context, _questionCancellation.Token);
             AnswerTextBox.Text = answer;
-            QuestionStatusTextBlock.Text = "Ответ готов";
+            QuestionStatusTextBlock.Text = "Answer ready";
         }
         catch (OperationCanceledException)
         {
-            QuestionStatusTextBlock.Text = "Вопрос отменён";
+            QuestionStatusTextBlock.Text = "Question canceled";
         }
         catch (Exception error)
         {
-            QuestionStatusTextBlock.Text = "Не удалось получить ответ";
-            MessageBox.Show(this, error.Message, "Вопрос к документу", MessageBoxButton.OK, MessageBoxImage.Error);
+            QuestionStatusTextBlock.Text = "Could not get an answer";
+            MessageBox.Show(this, error.Message, "Document question", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -324,8 +324,8 @@ public partial class MainWindow : Window
             if (winget is null)
             {
                 var openDocs = MessageBox.Show(this,
-                    "Windows Package Manager не найден, поэтому автоматическая установка недоступна. Открыть официальную инструкцию OpenAI?",
-                    "Установка Codex",
+                    "Windows Package Manager was not found, so automatic installation is unavailable. Open the official OpenAI setup guide?",
+                    "Codex setup",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Information);
                 if (openDocs == MessageBoxResult.Yes)
@@ -336,14 +336,14 @@ public partial class MainWindow : Window
             }
 
             var confirmation = MessageBox.Show(this,
-                "Для вопросов по документу нужен официальный Codex CLI от OpenAI. Установить его автоматически через Windows Package Manager?\n\nAPI key не потребуется.",
-                "Установить OpenAI Codex",
+                "Document questions require the official Codex CLI from OpenAI. Install it automatically through Windows Package Manager?\n\nNo API key is required.",
+                "Install OpenAI Codex",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
             if (confirmation != MessageBoxResult.Yes) return null;
 
-            CodexStatusTextBlock.Text = "Устанавливаю официальный OpenAI Codex…";
-            QuestionStatusTextBlock.Text = "Устанавливаю компонент для входа через ChatGPT…";
+            CodexStatusTextBlock.Text = "Installing the official OpenAI Codex CLI…";
+            QuestionStatusTextBlock.Text = "Installing the ChatGPT connection component…";
             var install = await new CodexCliInstaller(winget).InstallAsync(cancellationToken);
             if (!install.Succeeded) throw new InvalidOperationException(install.Message);
 
@@ -351,22 +351,22 @@ public partial class MainWindow : Window
             if (service is null)
             {
                 throw new InvalidOperationException(
-                    "Codex установлен, но Windows ещё не обновила путь к нему. Перезапустите PhotoSearch PDF и нажмите «Подключить OpenAI».");
+                    "Codex was installed, but Windows has not refreshed its path yet. Restart PhotoSearch PDF and select Connect OpenAI.");
             }
         }
 
-        CodexStatusTextBlock.Text = "Проверяю вход через подписку ChatGPT…";
+        CodexStatusTextBlock.Text = "Checking ChatGPT subscription sign-in…";
         var status = await service.GetLoginStatusAsync(cancellationToken);
         if (status.SignedInWithChatGpt) return service;
 
-        CodexStatusTextBlock.Text = "Завершите вход в открывшемся браузере…";
-        QuestionStatusTextBlock.Text = "Ожидаю вход через ChatGPT…";
+        CodexStatusTextBlock.Text = "Complete sign-in in the browser window…";
+        QuestionStatusTextBlock.Text = "Waiting for ChatGPT sign-in…";
         await service.LoginWithChatGptAsync(cancellationToken);
         status = await service.GetLoginStatusAsync(cancellationToken);
         if (!status.SignedInWithChatGpt)
         {
             throw new InvalidOperationException(
-                "Вход через подписку ChatGPT не подтверждён. Если Codex настроен с API key, выполните `codex logout`, затем повторите подключение.");
+                "ChatGPT subscription sign-in was not confirmed. If Codex is configured with an API key, run `codex logout`, then try connecting again.");
         }
         return service;
     }
@@ -377,7 +377,7 @@ public partial class MainWindow : Window
         CancelQuestionButton.IsEnabled = running;
         QuestionDocumentTextBox.IsEnabled = !running;
         QuestionTextBox.IsEnabled = !running;
-        LoginCodexButton.IsEnabled = !running && !Equals(LoginCodexButton.Content, "Подключено");
+        LoginCodexButton.IsEnabled = !running && !Equals(LoginCodexButton.Content, "Connected");
         RefreshCodexButton.IsEnabled = !running;
     }
 

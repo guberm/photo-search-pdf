@@ -63,7 +63,7 @@ public sealed class CodexCliInstaller
         using var process = new Process { StartInfo = startInfo };
         try
         {
-            if (!process.Start()) return new CodexInstallResult(false, "Не удалось запустить Windows Package Manager.");
+            if (!process.Start()) return new CodexInstallResult(false, "Could not start Windows Package Manager.");
             var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
             await process.WaitForExitAsync(cancellationToken);
@@ -71,13 +71,13 @@ public sealed class CodexCliInstaller
             var error = (await errorTask).Trim();
             if (process.ExitCode == 0)
             {
-                return new CodexInstallResult(true, "Codex CLI установлен.");
+                return new CodexInstallResult(true, "Codex CLI was installed.");
             }
 
             var detail = string.IsNullOrWhiteSpace(error) ? output : error;
             if (detail.Length > 1_000) detail = detail[^1_000..];
             return new CodexInstallResult(false,
-                $"Windows Package Manager завершился с ошибкой ({process.ExitCode}). {detail}".Trim());
+                $"Windows Package Manager exited with an error ({process.ExitCode}). {detail}".Trim());
         }
         catch (OperationCanceledException)
         {

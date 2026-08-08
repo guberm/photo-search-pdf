@@ -78,13 +78,13 @@ public sealed class CodexCliTests
     public void BuildPrompt_RequiresGroundedAnswerAndPageCitations()
     {
         var prompt = CodexQuestionService.BuildPrompt(
-            "Когда заканчивается договор?",
-            "=== Page 7 | scan.jpg ===\n31 декабря");
+            "When does the agreement end?",
+            "=== Page 7 | scan.jpg ===\nDecember 31");
 
-        Assert.Contains("Когда заканчивается договор?", prompt);
-        Assert.Contains("[стр. 7]", prompt);
-        Assert.Contains("только", prompt, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("31 декабря", prompt);
+        Assert.Contains("When does the agreement end?", prompt);
+        Assert.Contains("[page 7]", prompt);
+        Assert.Contains("only", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("December 31", prompt);
     }
 
     [Fact]

@@ -26,7 +26,7 @@ public static partial class DocumentContextBuilder
 
         var sourcePath = ResolveManifestPath(Path.GetFullPath(documentPath));
         var pages = ReadPages(sourcePath);
-        if (pages.Count == 0) throw new InvalidDataException("OCR JSON не содержит распознанных страниц.");
+        if (pages.Count == 0) throw new InvalidDataException("The OCR JSON contains no recognized pages.");
 
         var formatted = pages.Select(FormatPage).ToArray();
         var fullLength = formatted.Sum(value => value.Length + Environment.NewLine.Length);
@@ -85,7 +85,7 @@ public static partial class DocumentContextBuilder
         if (documentPath.EndsWith(".ocr.json", StringComparison.OrdinalIgnoreCase))
         {
             if (File.Exists(documentPath)) return documentPath;
-            throw new FileNotFoundException("OCR JSON не найден.", documentPath);
+            throw new FileNotFoundException("The OCR JSON file was not found.", documentPath);
         }
 
         if (documentPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
@@ -93,11 +93,11 @@ public static partial class DocumentContextBuilder
             var manifest = OutputPaths.GetSidecars(documentPath).Json;
             if (File.Exists(manifest)) return manifest;
             throw new FileNotFoundException(
-                $"Рядом с PDF не найден {Path.GetFileName(manifest)}. Выберите PDF, созданный PhotoSearch PDF, или соответствующий .ocr.json.",
+                $"{Path.GetFileName(manifest)} was not found next to the PDF. Choose a PDF created by PhotoSearch PDF or its matching .ocr.json file.",
                 manifest);
         }
 
-        throw new NotSupportedException("Для вопросов выберите PDF, созданный приложением, или файл .ocr.json.");
+        throw new NotSupportedException("For document questions, choose a PDF created by the app or an .ocr.json file.");
     }
 
     private static IReadOnlyList<OcrContextPage> ReadPages(string manifestPath)
@@ -106,7 +106,7 @@ public static partial class DocumentContextBuilder
         if (!document.RootElement.TryGetProperty("pages", out var pagesElement) ||
             pagesElement.ValueKind != JsonValueKind.Array)
         {
-            throw new InvalidDataException("Некорректный OCR JSON: отсутствует массив pages.");
+            throw new InvalidDataException("Invalid OCR JSON: the pages array is missing.");
         }
 
         var pages = new List<OcrContextPage>();
