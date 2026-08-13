@@ -32,41 +32,34 @@ public static class SearchablePdfWriter
 
     private static void AddPage(PdfDocument document, PdfPageInput input)
     {
-        var imageRatio = Math.Max(1, input.Ocr.PixelWidth) / (double)Math.Max(1, input.Ocr.PixelHeight);
         var page = document.AddPage();
-        if (imageRatio >= 1)
-        {
-            page.Width = XUnit.FromPoint(A4Height);
-            page.Height = XUnit.FromPoint(A4Width);
-        }
-        else
-        {
-            page.Width = XUnit.FromPoint(A4Width);
-            page.Height = XUnit.FromPoint(A4Height);
-        }
+        page.Width = XUnit.FromPoint(A4Width);
+        page.Height = XUnit.FromPoint(A4Height);
 
         using var graphics = XGraphics.FromPdfPage(page);
         using var image = XImage.FromFile(input.ImagePath);
-        DrawContainedImage(graphics, image, page.Width.Point, page.Height.Point);
+        var imageBounds = DrawContainedImage(graphics, image, page.Width.Point, page.Height.Point);
 
         var hiddenBrush = new XSolidBrush(XColor.FromArgb(1, 0, 0, 0));
         foreach (var line in input.Ocr.Lines.Where(line => !string.IsNullOrWhiteSpace(line.Text)))
         {
             var box = line.Box;
-            var fontSize = Math.Clamp(box.Height * page.Height.Point * 0.8, 4, 72);
+            var fontSize = Math.Clamp(box.Height * imageBounds.Height * 0.8, 4, 72);
             var font = new XFont("Arial", fontSize, XFontStyleEx.Regular,
                 new XPdfFontOptions(PdfFontEncoding.Unicode));
-            var x = Math.Clamp(box.X, 0, 1) * page.Width.Point;
-            var y = Math.Clamp(box.Y + box.Height, 0, 1) * page.Height.Point;
+            var x = imageBounds.X + Math.Clamp(box.X, 0, 1) * imageBounds.Width;
+            var y = imageBounds.Y + Math.Clamp(box.Y + box.Height, 0, 1) * imageBounds.Height;
             graphics.DrawString(line.Text, font, hiddenBrush, new XPoint(x, y));
         }
     }
 
-    private static void DrawContainedImage(XGraphics graphics, XImage image, double pageWidth, double pageHeight)
+    private static XRect DrawContainedImage(XGraphics graphics, XImage image, double pageWidth, double pageHeight)
     {
         var scale = Math.Min(pageWidth / image.PixelWidth, pageHeight / image.PixelHeight);
         var width = image.PixelWidth * scale;
         var height = image.PixelHeight * scale;
-        graphics.DrawImage(image, (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
+        var bounds = new XRect((pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
+        graphics.DrawImage(image, bounds);
+        return bounds;
     }
 }

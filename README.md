@@ -11,6 +11,7 @@ PhotoSearch PDF is a Windows app that turns a folder of photos into one PDF with
 - natural file ordering, so `page2.jpg` comes before `page10.jpg`;
 - optional subfolder processing;
 - one searchable PDF with the original image on every page;
+- portrait A4 pages with compressed JPEG images to keep PDF files smaller;
 - `.md`, `.txt`, and `.ocr.json` sidecars with page boundaries;
 - built-in document Q&A through the official Codex CLI and ChatGPT sign-in;
 - direct Q&A for any PDF that already contains searchable text, without requiring a sidecar file;

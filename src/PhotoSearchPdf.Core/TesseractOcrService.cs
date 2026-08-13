@@ -70,7 +70,7 @@ public sealed class TesseractOcrService : IDisposable
                 corrected = previous.Rotate90(RotationDirection.Clockwise);
             }
 
-            corrected.Save(imagePath, ImageFormat.Png);
+            corrected.Save(imagePath, ImageFormat.JfifJpeg);
         }
         finally
         {

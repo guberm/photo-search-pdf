@@ -73,10 +73,10 @@ public sealed class PhotoPdfConverter : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
             var source = images[index];
             progress?.Report(new ConversionProgress(index, images.Count, Path.GetFileName(source), "OCR"));
-            var normalized = Path.Combine(tempRoot, $"page-{index + 1:D6}.png");
+            var normalized = Path.Combine(tempRoot, $"page-{index + 1:D6}.jpg");
             using (var image = Image.LoadFromFile(source))
             {
-                image.Save(normalized, TesseractImageFormat.Png);
+                image.Save(normalized, TesseractImageFormat.JfifJpeg);
             }
 
             _ocr.CorrectOrientation(normalized, language, cancellationToken);
