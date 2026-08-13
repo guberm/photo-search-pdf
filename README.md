@@ -6,6 +6,7 @@ PhotoSearch PDF is a Windows app that turns a folder of photos into one PDF with
 
 - local OCR and PDF creation without uploading the photos;
 - Russian, English, or combined Russian + English OCR;
+- automatic correction of sideways and upside-down photos before OCR;
 - JPG, JPEG, PNG, BMP, TIFF, and WebP input;
 - natural file ordering, so `page2.jpg` comes before `page10.jpg`;
 - optional subfolder processing;
@@ -21,7 +22,7 @@ PhotoSearch PDF is a Windows app that turns a folder of photos into one PDF with
 ## Download and run
 
 1. Open the [latest Release](../../releases/latest).
-2. Download `PhotoSearchPdf-v1.1.2-win-x64.zip`.
+2. Download `PhotoSearchPdf-v1.1.3-win-x64.zip`.
 3. Extract the ZIP and run `PhotoSearchPdf.exe`.
 4. Choose a photo folder and OCR language, then select **Create searchable PDF**.
 
@@ -83,7 +84,7 @@ dotnet build src\PhotoSearchPdf.App\PhotoSearchPdf.App.csproj --configuration Re
 Build the release ZIP:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1 -Version 1.1.2
+powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1 -Version 1.1.3
 ```
 
 Architecture:

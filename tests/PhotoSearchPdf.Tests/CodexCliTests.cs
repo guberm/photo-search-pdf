@@ -92,6 +92,7 @@ public sealed class CodexCliTests
         Assert.Contains("[page 7]", prompt);
         Assert.Contains("only", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("December 31", prompt);
+        Assert.Contains("do not add generic OCR disclaimers", prompt);
     }
 
     [Fact]

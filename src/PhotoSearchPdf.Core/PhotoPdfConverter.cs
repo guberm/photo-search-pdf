@@ -79,6 +79,7 @@ public sealed class PhotoPdfConverter : IDisposable
                 image.Save(normalized, TesseractImageFormat.Png);
             }
 
+            _ocr.CorrectOrientation(normalized, language, cancellationToken);
             var ocr = _ocr.Recognize(normalized, index + 1, language, cancellationToken) with { SourceFile = source };
             pages.Add(new ProcessedPage(normalized, ocr));
         }

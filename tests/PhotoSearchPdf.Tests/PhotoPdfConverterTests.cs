@@ -33,6 +33,39 @@ public sealed class PhotoPdfConverterTests : IDisposable
         Assert.Contains("Second searchable page", pdf.GetPage(2).Text, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task ConvertAsync_AutomaticallyCorrectsRotatedPhotosBeforeOcr()
+    {
+        var imagePath = Path.Combine(_folder, "rotated.png");
+        using (var bitmap = new Bitmap(1800, 2400))
+        using (var graphics = Graphics.FromImage(bitmap))
+        using (var font = new Font("Arial", 48, FontStyle.Bold))
+        {
+            graphics.Clear(Color.White);
+            for (var line = 0; line < 18; line++)
+            {
+                graphics.DrawString($"Annual price adjustment and consumer price index {line + 1}", font, Brushes.Black, 50, 60 + line * 120);
+            }
+
+            bitmap.RotateFlip(RotateFlipType.Rotate270FlipNone);
+            bitmap.Save(imagePath, ImageFormat.Png);
+        }
+
+        var output = Path.Combine(_folder, "rotated-result.pdf");
+        using var converter = new PhotoPdfConverter(Path.Combine(AppContext.BaseDirectory, "tessdata"));
+
+        await converter.ConvertAsync(
+            new ConversionOptions(_folder, output, "eng", false),
+            null,
+            CancellationToken.None);
+
+        using var pdf = PdfDocument.Open(output);
+        var page = pdf.GetPage(1);
+        Assert.True(page.Width < page.Height);
+        Assert.Contains("Annual price adjustment", page.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("consumer price index", page.Text, StringComparison.OrdinalIgnoreCase);
+    }
+
     private void CreateTextImage(string name, string text)
     {
         using var bitmap = new Bitmap(1500, 300);
