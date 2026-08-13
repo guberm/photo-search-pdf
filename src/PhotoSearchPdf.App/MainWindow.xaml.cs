@@ -328,16 +328,16 @@ public partial class MainWindow : Window
                 return;
             }
 
-            QuestionStatusTextBlock.Text = "Selecting relevant document pages…";
-            var context = await Task.Run(
-                () => DocumentContextBuilder.Build(documentPath, question),
+            QuestionStatusTextBlock.Text = "Preparing all document pages…";
+            var contexts = await Task.Run(
+                () => DocumentContextBuilder.BuildAll(documentPath),
                 _questionCancellation.Token);
-            ContextInfoTextBlock.Text = context.IsTruncated
-                ? $"Pages selected for context: {context.SelectedPages.Count} of {context.TotalPages}"
-                : $"All pages included in context: {context.TotalPages}";
+            ContextInfoTextBlock.Text = contexts.Count == 1
+                ? $"All pages included in context: {contexts[0].TotalPages}"
+                : $"All pages included in context: {contexts[0].TotalPages} ({contexts.Count} analysis passes)";
 
             QuestionStatusTextBlock.Text = "OpenAI is analyzing the document text…";
-            var answer = await service.AskAsync(question, context, _questionCancellation.Token);
+            var answer = await service.AskAsync(question, contexts, _questionCancellation.Token);
             AnswerTextBox.Text = answer;
             QuestionStatusTextBlock.Text = "Answer ready";
         }

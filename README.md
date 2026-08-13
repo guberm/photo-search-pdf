@@ -17,13 +17,13 @@ PhotoSearch PDF is a Windows app that turns a folder of photos into one PDF with
 - direct Q&A for any PDF that already contains searchable text, without requiring a sidecar file;
 - automatic installation of the official Codex CLI through Windows Package Manager when it is missing;
 - grounded answers with page citations such as `[page 12]`;
-- local relevance selection for documents that are too large to send in full;
+- automatic multi-pass analysis of large documents without dropping pages;
 - folder drag-and-drop, cancellation, and command-line path support.
 
 ## Download and run
 
 1. Open the [latest Release](../../releases/latest).
-2. Download `PhotoSearchPdf-v1.1.4-win-x64.zip`.
+2. Download `PhotoSearchPdf-v1.1.5-win-x64.zip`.
 3. Extract the ZIP and run `PhotoSearchPdf.exe`.
 4. Choose a photo folder and OCR language, then select **Create searchable PDF**.
 
@@ -55,6 +55,8 @@ If you skip setup and select **Ask question**, the same installation and sign-in
 
 When a matching `.ocr.json` sidecar exists, the app uses its high-quality OCR page data. Otherwise, it extracts the embedded text from the PDF itself. If an external PDF is an image-only scan with no text layer, use **Create PDF** to run OCR first.
 
+Ask analyzes every page. Documents that do not fit in one model request are split into safe chunks, analyzed in multiple passes, and consolidated into one cited answer.
+
 The connection panel displays the ChatGPT account email and plan returned by the official Codex account interface. Select **Disconnect** to sign Codex out after confirming that this also affects other Codex apps in the same Windows account.
 
 The app checks `codex login status` and accepts only ChatGPT sign-in. API-key authentication is intentionally rejected. Requests use official `codex exec` in read-only and ephemeral mode, with user rules, plugins, and MCP disabled for the run. OpenAI documents [ChatGPT sign-in as subscription access](https://learn.chatgpt.com/docs/auth) and [`codex exec` as the supported non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode).
@@ -85,7 +87,7 @@ dotnet build src\PhotoSearchPdf.App\PhotoSearchPdf.App.csproj --configuration Re
 Build the release ZIP:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1 -Version 1.1.4
+powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1 -Version 1.1.5
 ```
 
 Architecture:

@@ -184,4 +184,42 @@ public sealed class CodexCliTests
             File.Delete(command);
         }
     }
+
+    [Fact]
+    public async Task AskAsync_ProcessesEveryDocumentChunkAndConsolidatesTheAnswers()
+    {
+        var script = Path.Combine(Path.GetTempPath(), $"photo-search-chunks-{Guid.NewGuid():N}.ps1");
+        var command = Path.ChangeExtension(script, ".cmd");
+        var counter = Path.ChangeExtension(script, ".count");
+        await File.WriteAllTextAsync(script, $$"""
+            $null = [Console]::In.ReadToEnd()
+            $counter = '{{counter.Replace("'", "''")}}'
+            $count = if (Test-Path -LiteralPath $counter) { [int](Get-Content -LiteralPath $counter -Raw) } else { 0 }
+            [System.IO.File]::WriteAllText($counter, [string]($count + 1))
+            if ($count -eq 2) { [Console]::Out.Write('FINAL') } else { [Console]::Out.Write("PARTIAL $($count + 1)") }
+            """, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(command,
+            $"@echo off{Environment.NewLine}powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{script}\"",
+            TestContext.Current.CancellationToken);
+        try
+        {
+            var service = new CodexQuestionService(new CodexCliInvocation("cmd.exe", ["/d", "/s", "/c", command]));
+            var chunks = new[]
+            {
+                new DocumentContext("First half", [1], 2, false, "contract.pdf"),
+                new DocumentContext("Second half", [2], 2, false, "contract.pdf")
+            };
+
+            var answer = await service.AskAsync("Review every page.", chunks, TestContext.Current.CancellationToken);
+
+            Assert.Equal("FINAL", answer);
+            Assert.Equal("3", await File.ReadAllTextAsync(counter, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            File.Delete(counter);
+            File.Delete(command);
+            File.Delete(script);
+        }
+    }
 }

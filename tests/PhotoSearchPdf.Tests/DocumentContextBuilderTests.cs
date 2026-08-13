@@ -49,6 +49,40 @@ public sealed class DocumentContextBuilderTests : IDisposable
     }
 
     [Fact]
+    public void Build_DefaultBudget_IncludesEveryPageOfAnOrdinaryContract()
+    {
+        var manifest = Path.Combine(_folder, "contract.ocr.json");
+        WriteManifest(manifest, Enumerable.Range(1, 38)
+            .Select(page => (page, $"{page:D3}.jpg", $"Page {page} " + new string('x', 2_650)))
+            .ToArray());
+
+        var result = DocumentContextBuilder.Build(manifest, "Review all price adjustments.");
+
+        Assert.Equal(38, result.TotalPages);
+        Assert.Equal(38, result.SelectedPages.Count);
+        Assert.False(result.IsTruncated);
+    }
+
+    [Fact]
+    public void BuildAll_SplitsLargeDocumentsWithoutDroppingPages()
+    {
+        var manifest = Path.Combine(_folder, "large-contract.ocr.json");
+        WriteManifest(manifest, Enumerable.Range(1, 120)
+            .Select(page => (page, $"{page:D3}.jpg", $"Unique page marker {page} " + new string('x', 2_650)))
+            .ToArray());
+
+        var chunks = DocumentContextBuilder.BuildAll(manifest);
+
+        Assert.True(chunks.Count > 1);
+        Assert.All(chunks, chunk => Assert.False(chunk.IsTruncated));
+        Assert.Equal(Enumerable.Range(1, 120), chunks.SelectMany(chunk => chunk.SelectedPages).Distinct());
+        for (var page = 1; page <= 120; page++)
+        {
+            Assert.Contains(chunks, chunk => chunk.Text.Contains($"Unique page marker {page} ", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
     public void Build_FromSearchablePdfWithoutSidecar_ExtractsEmbeddedText()
     {
         var pdf = Path.Combine(_folder, "external.pdf");

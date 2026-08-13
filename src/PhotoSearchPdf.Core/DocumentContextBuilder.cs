@@ -15,7 +15,7 @@ public sealed record DocumentContext(
 
 public static partial class DocumentContextBuilder
 {
-    public const int DefaultMaxCharacters = 80_000;
+    public const int DefaultMaxCharacters = 200_000;
 
     public static DocumentContext Build(
         string documentPath,
@@ -78,6 +78,59 @@ public static partial class DocumentContextBuilder
             pages.Count,
             true,
             sourcePath);
+    }
+
+    public static IReadOnlyList<DocumentContext> BuildAll(
+        string documentPath,
+        int maxCharacters = DefaultMaxCharacters)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentPath);
+        if (maxCharacters < 200) throw new ArgumentOutOfRangeException(nameof(maxCharacters));
+
+        var (sourcePath, pages) = ReadDocument(Path.GetFullPath(documentPath));
+        var chunks = new List<DocumentContext>();
+        var current = new List<OcrContextPage>();
+        var currentLength = 0;
+
+        void Flush()
+        {
+            if (current.Count == 0) return;
+            chunks.Add(new DocumentContext(
+                string.Join(Environment.NewLine, current.Select(FormatPage)),
+                current.Select(page => page.PageNumber).Distinct().ToArray(),
+                pages.Count,
+                false,
+                sourcePath));
+            current.Clear();
+            currentLength = 0;
+        }
+
+        foreach (var page in pages)
+        {
+            var formatted = FormatPage(page);
+            if (formatted.Length <= maxCharacters)
+            {
+                var separatorLength = current.Count == 0 ? 0 : Environment.NewLine.Length;
+                if (currentLength + separatorLength + formatted.Length > maxCharacters) Flush();
+                current.Add(page);
+                currentLength += (current.Count == 1 ? 0 : Environment.NewLine.Length) + formatted.Length;
+                continue;
+            }
+
+            Flush();
+            var headerLength = FormatHeader(page).Length + Environment.NewLine.Length;
+            var segmentLength = maxCharacters - headerLength;
+            for (var offset = 0; offset < page.Text.Length; offset += segmentLength)
+            {
+                var segment = page with { Text = page.Text.Substring(offset, Math.Min(segmentLength, page.Text.Length - offset)) };
+                current.Add(segment);
+                currentLength = FormatPage(segment).Length;
+                Flush();
+            }
+        }
+
+        Flush();
+        return chunks;
     }
 
     private static (string SourcePath, IReadOnlyList<OcrContextPage> Pages) ReadDocument(string documentPath)
