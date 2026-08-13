@@ -1,4 +1,5 @@
 using PhotoSearchPdf.Core;
+using System.Text;
 
 namespace PhotoSearchPdf.Tests;
 
@@ -114,5 +115,48 @@ public sealed class CodexCliTests
         Assert.Equal("pro", account.PlanType);
         Assert.Equal("Connected as person@example.com (ChatGPT Pro)",
             CodexQuestionService.BuildConnectedMessage(account));
+    }
+
+    [Fact]
+    public async Task AskAsync_WritesPromptAsUtf8RegardlessOfWindowsConsoleEncoding()
+    {
+        var script = Path.Combine(Path.GetTempPath(), $"photo-search-utf8-{Guid.NewGuid():N}.ps1");
+        var command = Path.ChangeExtension(script, ".cmd");
+        await File.WriteAllTextAsync(script, """
+            $stream = [Console]::OpenStandardInput()
+            $memory = [System.IO.MemoryStream]::new()
+            $stream.CopyTo($memory)
+            try {
+                $utf8 = [System.Text.UTF8Encoding]::new($false, $true)
+                $null = $utf8.GetString($memory.ToArray())
+                [Console]::Out.Write('OK')
+            } catch {
+                [Console]::Error.Write($_.Exception.Message)
+                exit 17
+            }
+            """, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(command,
+            $"@echo off{Environment.NewLine}powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{script}\"",
+            TestContext.Current.CancellationToken);
+        var originalEncoding = Console.InputEncoding;
+        try
+        {
+            Console.InputEncoding = Encoding.Latin1;
+            var service = new CodexQuestionService(new CodexCliInvocation(
+                "cmd.exe",
+                ["/d", "/s", "/c", command]));
+            var context = new DocumentContext("Café — annual increase €", [1], 1, false, "contract.pdf");
+
+            var answer = await service.AskAsync(
+                "Review the price increase.", context, TestContext.Current.CancellationToken);
+
+            Assert.Equal("OK", answer);
+        }
+        finally
+        {
+            Console.InputEncoding = originalEncoding;
+            File.Delete(command);
+            File.Delete(script);
+        }
     }
 }
