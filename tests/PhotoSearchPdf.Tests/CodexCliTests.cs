@@ -160,4 +160,28 @@ public sealed class CodexCliTests
             File.Delete(script);
         }
     }
+
+    [Fact]
+    public async Task GetLoginStatusAsync_DoesNotConfigureInputEncodingWithoutRedirectedInput()
+    {
+        var command = Path.Combine(Path.GetTempPath(), $"photo-search-status-{Guid.NewGuid():N}.cmd");
+        await File.WriteAllTextAsync(command,
+            $"@echo off{Environment.NewLine}echo Not logged in{Environment.NewLine}exit /b 1",
+            TestContext.Current.CancellationToken);
+        try
+        {
+            var service = new CodexQuestionService(new CodexCliInvocation(
+                "cmd.exe",
+                ["/d", "/s", "/c", command]));
+
+            var status = await service.GetLoginStatusAsync(TestContext.Current.CancellationToken);
+
+            Assert.True(status.CliFound);
+            Assert.False(status.SignedInWithChatGpt);
+        }
+        finally
+        {
+            File.Delete(command);
+        }
+    }
 }

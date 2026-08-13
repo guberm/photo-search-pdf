@@ -13,7 +13,11 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _questionCancellation;
     private string? _completedPdf;
 
-    public MainWindow() => InitializeComponent();
+    public MainWindow()
+    {
+        InitializeComponent();
+        Title = $"PhotoSearch PDF v{typeof(MainWindow).Assembly.GetName().Version!.ToString(3)}";
+    }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {

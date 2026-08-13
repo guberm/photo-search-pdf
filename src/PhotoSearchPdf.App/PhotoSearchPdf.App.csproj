@@ -9,7 +9,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <AssemblyName>PhotoSearchPdf</AssemblyName>
     <RootNamespace>PhotoSearchPdf.App</RootNamespace>
-    <Version>1.1.3</Version>
+    <Version>1.1.4</Version>
     <Product>PhotoSearch PDF</Product>
     <Description>Turn photos into a searchable OCR PDF and ask questions through a ChatGPT subscription.</Description>
     <Nullable>enable</Nullable>

@@ -234,10 +234,10 @@ public sealed class CodexQuestionService
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
-            StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8
         };
+        if (standardInput is not null) startInfo.StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
         foreach (var argument in _invocation.PrefixArguments) startInfo.ArgumentList.Add(argument);
         foreach (var argument in arguments) startInfo.ArgumentList.Add(argument);
 
